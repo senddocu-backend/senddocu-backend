@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SendDocu – Verification</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f6f7f9;
+      padding: 40px;
+    }
+    .card {
+      max-width: 720px;
+      margin: auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+    }
+    .ok { color: green; font-weight: bold; }
+    .fail { color: red; font-weight: bold; }
+    code {
+      background: #eee;
+      padding: 4px 6px;
+      border-radius: 4px;
+      display: inline-block;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h2>📄 SendDocu – Document Verification</h2>
+  <p id="status">Loading verification…</p>
+
+  <hr>
+
+  <p><strong>Envelope ID:</strong> <span id="env"></span></p>
+  <p><strong>Status:</strong> <span id="envStatus"></span></p>
+  <p><strong>Integrity:</strong> <span id="integrity"></span></p>
+
+  <p><strong>Snapshot Hash:</strong><br>
+    <code id="snapshot"></code>
+  </p>
+
+  <p><strong>Certificate Hash:</strong><br>
+    <code id="certificate"></code>
+  </p>
+
+  <p><strong>Sent At:</strong> <span id="sent"></span></p>
+  <p><strong>Completed At:</strong> <span id="completed"></span></p>
+
+  <hr>
+  <small>
+    This page independently verifies the integrity and completion of a SendDocu envelope.
+    No login required. No data can be altered.
+  </small>
+</div>
+
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const envelopeId = params.get("envelope");
+
+  if (!envelopeId) {
+    document.getElementById("status").innerHTML =
+      "<span class='fail'>Missing envelope ID</span>";
+    throw new Error("Envelope ID missing");
+  }
+
+  document.getElementById("env").textContent = envelopeId;
+
+  fetch(`/verify/${envelopeId}`)
+    .then(r => r.json())
+    .then(v => {
+      if (v.integrity_ok) {
+        document.getElementById("status").innerHTML =
+          "<span class='ok'>✔ VERIFIED – Document is intact</span>";
+      } else {
+        document.getElementById("status").innerHTML =
+          "<span class='fail'>✖ TAMPER DETECTED</span>";
+      }
+
+      document.getElementById("envStatus").textContent = v.status;
+      document.getElementById("integrity").textContent = v.integrity_ok ? "VALID" : "INVALID";
+      document.getElementById("snapshot").textContent = v.snapshot_hash;
+      document.getElementById("sent").textContent = v.sent_at || "-";
+      document.getElementById("completed").textContent = v.completed_at || "-";
+    });
+
+  fetch(`/certificate/${envelopeId}`)
+    .then(r => r.json())
+    .then(c => {
+      document.getElementById("certificate").textContent = c.certificate_hash;
+    });
+</script>
+
+</body>
+</html>

@@ -2,9 +2,10 @@ const express = require("express");
 const router = express.Router();
 
 router.get("/", (req, res) => {
-  res.status(200).json({
+  res.json({
     status: "OK",
-    service: "SendDocu"
+    service: "SendDocu",
+    time: new Date().toISOString()
   });
 });
 

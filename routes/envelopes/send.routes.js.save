@@ -1,0 +1,8 @@
+const express = require("express");
+const router = express.Router();
+
+router.post("/:id/send", (req, res) => {
+  return res.json({ ok: true });
+});
+
+module.exports = router;

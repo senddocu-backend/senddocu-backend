@@ -1,0 +1,71 @@
+require("dotenv").config();
+console.log("🚀 SERVER.JS STARTED");
+const express = require("express");
+const cors = require("cors");
+const path = require("path");
+const authRoutes = require("./routes/auth/login.routes"); // auth OK
+const app = express();
+const envelopeRoutes = require("./routes/envelopes/index");
+const signRoutes = require("./routes/sign.routes");
+
+const rateLimiter = require("./middleware/rateLimit");
+app.use(rateLimiter);
+
+const { client, httpRequestDuration } = require("./monitoring/metrics");
+
+// ========================
+// Middleware
+// ========================
+app.use(cors());
+app.use(express.json());
+
+// ========================
+// Static frontend
+// ========================
+app.use(express.static(path.join(__dirname, "public")));
+
+app.use((req, res, next) => {
+  const end = httpRequestDuration.startTimer();
+
+  res.on("finish", () => {
+    end({
+      method: req.method,
+      route: req.route?.path || req.path,
+      status: res.statusCode,
+    });
+  });
+
+  next();
+});
+
+// ========================
+// Routes
+// ========================
+app.use("/auth", require("./routes/auth/login.routes"));
+app.use("/auth", require("./routes/auth/me"));
+app.use("/documents", require("./routes/documents.routes"));
+app.use("/health", require("./routes/health.routes"));
+app.use("/envelopes", require("./routes/envelopes"));
+app.use("/sign", signRoutes);
+app.use("/verify", require("./routes/verify.routes"));
+
+
+
+const certificateRoutes = require("./routes/certificates.routes");
+app.use("/certificates", certificateRoutes);
+// ========================
+// Error handler
+// ========================
+app.use((err, req, res, next) => {
+  console.error("UNHANDLED ERROR:", err);
+  res.status(500).json({ error: "INTERNAL_SERVER_ERROR" });
+});
+
+// ========================
+// Start
+// ========================
+const PORT = process.env.PORT || 3000;
+console.log("🎯 ABOUT TO LISTEN ON PORT", process.env.PORT || 3000);
+app.listen(PORT, () => {
+  console.log(`SendDocu backend running on port ${PORT}`);
+});
