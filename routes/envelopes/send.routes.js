@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../../config/db");
-
+const { STATES, assertTransition } = require("../../services/envelope.lifecycle");
 // POST /envelopes/:id/send
 router.post("/:id/send", async (req, res) => {
   const envelopeId = Number(req.params.id);
@@ -9,7 +9,7 @@ router.post("/:id/send", async (req, res) => {
 
   try {
     await db.query("BEGIN");
-
+assertTransition(envelope.status, STATES.SENT);
     // 1️⃣ Lock envelope
     const { rows: envelopes } = await db.query(
       `
