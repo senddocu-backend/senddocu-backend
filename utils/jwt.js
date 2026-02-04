@@ -1,6 +1,8 @@
+// utils/jwt.js
 const jwt = require("jsonwebtoken");
 
 const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "15m";
 
 if (!JWT_SECRET) {
   throw new Error("JWT_SECRET is not defined");
@@ -8,7 +10,7 @@ if (!JWT_SECRET) {
 
 function signToken(payload) {
   return jwt.sign(payload, JWT_SECRET, {
-    expiresIn: "24h", // IMPORTANT
+    expiresIn: JWT_EXPIRES_IN
   });
 }
 
@@ -18,5 +20,5 @@ function verifyToken(token) {
 
 module.exports = {
   signToken,
-  verifyToken,
+  verifyToken
 };

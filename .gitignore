@@ -1,2 +1,39 @@
+# ========================
+# Node.js
+# ========================
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ========================
+# Environment files
+# ========================
 .env
+.env.*
+!.env.example
+
+# ========================
+# Runtime / temp files
+# ========================
+*.save
+*.log
+*.pid
+
+# ========================
+# Generated / local artifacts
+# ========================
+cert.pdf
+certificate.pdf
+
+# ========================
+# OS files
+# ========================
+.DS_Store
+Thumbs.db
+
+# ========================
+# PM2
+# ========================
+.pids
+.pm2/

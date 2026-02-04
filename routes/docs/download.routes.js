@@ -1,6 +1,7 @@
 const express = require("express");
+
 const path = require("path");
-const db = require("../../config/db");
+const { pool } = require("../../config/db");
 
 
 const router = express.Router();

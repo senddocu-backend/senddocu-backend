@@ -1,50 +1,62 @@
 const express = require("express");
 const router = express.Router();
-const db = require("../config/db");
 
-// POST /sign/:signing_token
+const { query } = require("../config/db");
+const audit = require("../utils/audit");
+
 router.post("/:token", async (req, res) => {
   const { token } = req.params;
 
   try {
-    await db.query("BEGIN");
-
-    // 1. Fetch recipient + envelope
-    const { rows } = await db.query(
-      `
-      SELECT r.id AS recipient_id,
-             r.signed_at,
-             e.id AS envelope_id,
-             e.status
-      FROM recipients r
-      JOIN envelopes e ON e.id = r.envelope_id
-      WHERE r.signing_token = $1
-      FOR UPDATE
-      `,
-      [token]
-    );
+    await query("BEGIN");
+const { rows } = await query(
+  `
+  SELECT
+    r.id AS recipient_id,
+    r.email,
+    r.signed_at,
+    r.signing_order,
+    r.signing_expires_at,
+    e.id AS envelope_id,
+    e.status,
+    e.tenant_id
+  FROM recipients r
+  JOIN envelopes e ON e.id = r.envelope_id
+  WHERE r.signing_token = $1
+    AND r.signing_order = (
+      SELECT MIN(signing_order)
+      FROM recipients
+      WHERE envelope_id = e.id
+        AND signed_at IS NULL
+    )
+  FOR UPDATE
+  `,
+  [token]
+);
 
     if (!rows.length) {
-      await db.query("ROLLBACK");
-      return res.status(404).json({ error: "INVALID_SIGNING_TOKEN" });
+      await query("ROLLBACK");
+      return res.status(404).json({ error: "INVALID_OR_OUT_OF_ORDER_TOKEN" });
     }
 
     const row = rows[0];
 
-    // 2. Envelope must be sent
     if (row.status !== "sent") {
-      await db.query("ROLLBACK");
+      await query("ROLLBACK");
       return res.status(400).json({ error: "ENVELOPE_NOT_SIGNABLE" });
     }
 
-    // 3. Prevent double signing
     if (row.signed_at) {
-      await db.query("ROLLBACK");
+      await query("ROLLBACK");
       return res.status(409).json({ error: "ALREADY_SIGNED" });
     }
 
-    // 4. Mark recipient signed
-    await db.query(
+   if (row.signing_expires_at && row.signing_expires_at < new Date()) {
+  await query("ROLLBACK");
+  return res.status(410).json({ error: "SIGNING_LINK_EXPIRED" });
+}
+
+    await query(
       `
       UPDATE recipients
       SET signed_at = NOW(),
@@ -54,15 +66,28 @@ router.post("/:token", async (req, res) => {
       [row.recipient_id]
     );
 
-    // 5. Auto-complete envelope if all signed (trigger handles it)
-    await db.query("COMMIT");
+    await query("COMMIT");
+
+    // 🔐 AUDIT — NON BLOCKING (CRITICAL RULE)
+    audit({
+      tenantId: row.tenant_id,
+      actorUserId: null,
+      actorRole: "signer",
+      entityType: "recipient",
+      entityId: row.recipient_id,
+      action: "SIGNED",
+      req
+    }).catch(err => {
+      console.error("AUDIT FAILED:", err);
+    });
 
     return res.json({
       status: "SIGNED",
       envelopeId: row.envelope_id
     });
+
   } catch (err) {
-    await db.query("ROLLBACK");
+    await query("ROLLBACK");
     console.error("SIGN ERROR:", err);
     return res.status(500).json({ error: "SIGN_FAILED" });
   }

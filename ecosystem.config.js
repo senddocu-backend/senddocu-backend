@@ -1,25 +1,15 @@
 module.exports = {
-  apps: [
-    {
-      name: "senddocu-backend",
-      script: "server.js",
-      cwd: "/var/www/senddocu/backend",
-
-      // 🔴 KEY CHANGE
-      exec_mode: "cluster",
-      instances: "max",   // uses all CPU cores
-
-      env: {
-        NODE_ENV: "production",
-        PORT: 3000,
-        JWT_SECRET: "senddocu_super_secret_key_change_later"
-      },
-
-      // Stability guards
-      listen_timeout: 8000,
-      kill_timeout: 8000,
-      max_restarts: 10,
-      restart_delay: 2000
+  apps: [{
+    name: "senddocu-backend",
+    script: "server.js",
+    instances: 1,
+    exec_mode: "fork",
+    autorestart: true,
+    max_restarts: 5,
+    restart_delay: 3000,
+    watch: false,
+    env: {
+      NODE_ENV: "production"
     }
-  ]
+  }]
 };

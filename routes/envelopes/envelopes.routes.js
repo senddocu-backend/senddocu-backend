@@ -1,22 +1,38 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../../config/db");
+const auth = require("../../middleware/auth.middleware");
 
-router.get("/", async (req, res) => {
-  const tenantId = req.user.tenantId;
+router.post("/", auth, async (req, res) => {
+  try {
+    const { subject, message } = req.body;
+    const { userId, tenantId } = req.user;
 
-  const result = await db.query(
-    `SELECT id, status, created_at, sent_at, completed_at
-     FROM envelopes
-     WHERE tenant_id = $1
-     ORDER BY id DESC`,
-    [tenantId]
-  );
+    if (!subject) {
+      return res.status(400).json({ error: "SUBJECT_REQUIRED" });
+    }
 
-  res.json({
-    count: result.rowCount,
-    envelopes: result.rows,
-  });
+    const result = await db.query(
+      `
+      INSERT INTO envelopes (tenant_id, created_by, subject, message, status)
+      VALUES ($1, $2, $3, $4, 'draft')
+      RETURNING id, status, created_at
+      `,
+      [tenantId, userId, subject, message || null]
+    );
+
+    const envelope = result.rows[0];
+
+    return res.status(201).json({
+      id: envelope.id,
+      status: envelope.status,
+      createdAt: envelope.created_at,
+    });
+
+  } catch (err) {
+    console.error("CREATE_ENVELOPE_FAILED:", err);
+    return res.status(500).json({ error: "CREATE_ENVELOPE_FAILED" });
+  }
 });
 
 module.exports = router;

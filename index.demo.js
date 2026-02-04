@@ -1,9 +1,10 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+require("dotenv").config();
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 /* =====================
    MIDDLEWARE
@@ -17,16 +18,31 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 /* =====================
-   AUTH MIDDLEWARE
+   HEALTH CHECK
+===================== */
+app.get("/health", (req, res) => {
+  res.json({
+    status: "OK",
+    service: "SendDocu",
+    time: new Date().toISOString(),
+  });
+});
+
+/* =====================
+   AUTH (TEMP INLINE)
 ===================== */
 function auth(req, res, next) {
   const authHeader = req.headers.authorization;
-  if (!authHeader) return res.status(401).json({ error: "No token" });
+  if (!authHeader) {
+    return res.status(401).json({ error: "NO_TOKEN" });
+  }
 
   const token = authHeader.split(" ")[1];
-  if (!token) return res.status(401).json({ error: "Invalid token" });
+  if (!token) {
+    return res.status(401).json({ error: "INVALID_TOKEN" });
+  }
 
-  // TEMP: accept any token (can plug JWT later)
+  // TEMP: accept any token
   req.user = { email: "admin@senddocu.com", role: "admin" };
   next();
 }
@@ -41,20 +57,22 @@ app.post("/auth/login", (req, res) => {
     return res.json({ token: "demo-token-123" });
   }
 
-  res.status(401).json({ error: "Invalid credentials" });
+  return res.status(401).json({ error: "INVALID_CREDENTIALS" });
 });
 
 app.get("/auth/me", auth, (req, res) => {
   res.json({
     email: req.user.email,
     role: req.user.role,
-    tenantId: "SENDDOCU"
+    tenantId: "SENDDOCU",
   });
 });
 
 /* =====================
-   DOCUMENTS API
+   API ROUTES
 ===================== */
+app.use("/envelopes", require("./routes/envelopes")); // ✅ SAFE NOW
+
 app.get("/api/documents", auth, (req, res) => {
   res.json([
     {
@@ -62,20 +80,20 @@ app.get("/api/documents", auth, (req, res) => {
       subject: "Welcome Mail",
       recipients: "user@example.com",
       status: "SENT",
-      sentAt: new Date()
+      sentAt: new Date(),
     },
     {
       id: 2,
       subject: "Invoice",
       recipients: "client@example.com",
       status: "PENDING",
-      sentAt: null
-    }
+      sentAt: null,
+    },
   ]);
 });
 
 /* =====================
-   FALLBACK
+   FALLBACK (SPA)
 ===================== */
 app.use((req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));
@@ -84,6 +102,6 @@ app.use((req, res) => {
 /* =====================
    START SERVER
 ===================== */
-app.listen(PORT, () => {
-  console.log(`SendDocu backend running on port ${PORT}`);
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 SendDocu backend running on port ${PORT}`);
 });

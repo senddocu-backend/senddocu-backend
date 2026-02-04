@@ -1,31 +1,23 @@
-const jwt = require("jsonwebtoken");
+const { verifyToken } = require("../utils/jwt");
 
 module.exports = function authMiddleware(req, res, next) {
-  const authHeader = req.headers.authorization;
+  const header = req.headers.authorization;
 
-  if (!authHeader) {
-    return res.status(401).json({ error: "UNAUTHORIZED" });
-  }
-
-  const parts = authHeader.split(" ");
-
-  if (parts.length !== 2 || parts[0] !== "Bearer") {
+  if (!header || !header.startsWith("Bearer ")) {
     return res.status(401).json({ error: "INVALID_AUTH_HEADER" });
   }
 
-  const token = parts[1];
-
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const token = header.split(" ")[1];
+    const decoded = verifyToken(token);
 
-    // Attach user context
     req.user = {
       userId: decoded.userId,
       tenantId: decoded.tenantId,
-      role: decoded.role,
+      role: decoded.role
     };
 
-    return next();
+    next();
   } catch (err) {
     console.error("JWT VERIFY FAILED:", err.message);
     return res.status(401).json({ error: "INVALID_OR_EXPIRED_TOKEN" });
