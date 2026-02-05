@@ -22,6 +22,7 @@ const DELAY_MS = 1000;
         process.exit(1);
       }
       await new Promise(r => setTimeout(r, DELAY_MS));
+     await fetch(`${BASE_URL}/health`);
     }
   }
 })();
